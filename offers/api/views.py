@@ -1,47 +1,46 @@
-from rest_framework.exceptions import APIException  
-from rest_framework.pagination import PageNumberPagination  
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView  
-from offers.models import Offer  
-from offers.api.serializers import OfferSerializer  
-from rest_framework.permissions import IsAuthenticatedOrReadOnly  
-from django_filters.rest_framework import DjangoFilterBackend 
-from rest_framework.filters import SearchFilter, OrderingFilter   
-from offers.api.ordering import OrderingHelperOffers  
-from django.db.models import Min 
-from offers.api.permissions import IsOwnerOrAdmin  
+from rest_framework.exceptions import APIException
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from offers.models import Offer
+from offers.api.serializers import OfferSerializer
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from offers.api.ordering import OrderingHelperOffers
+from django.db.models import Min
+from offers.api.permissions import IsOwnerOrAdmin
 from offers.api.serializers import OfferSingleDetailsSerializer, AllOfferDetailsSerializer, OfferDetailSerializer
-from django.shortcuts import get_object_or_404  
-from rest_framework.exceptions import PermissionDenied  
-from rest_framework.response import Response  
-from rest_framework import status  
-from rest_framework.views import APIView 
-from offers.models import OfferDetail  
-from django.utils.timezone import now  
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.views import APIView
+from offers.models import OfferDetail
+from django.utils.timezone import now
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
-
-class OfferPagination(PageNumberPagination):  
-    max_page_size = 6  
-    page_size = 6  
-    page_size_query_param = 'page_size' 
-
-
-class BusinessProfileRequired(APIException):  
-    status_code = 403  
-    default_code = "business_profile_required"  
-    default_detail = {"detail": ["Nur Geschäftskunden ist die Erstellung von Angeboten erlaubt."]}  
+class OfferPagination(PageNumberPagination):
+    max_page_size = 6
+    page_size = 6
+    page_size_query_param = 'page_size'
 
 
-class OfferListAPIView(ListCreateAPIView):  
-    queryset = Offer.objects.annotate(min_price=Min('details__price'))  
-    serializer_class = OfferSerializer 
-    permission_classes = [IsAuthenticated] 
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]  
-    pagination_class = OfferPagination  
-    filterset_fields = ['user'] 
-    search_fields = ['title', 'description']  
+class BusinessProfileRequired(APIException):
+    status_code = 403
+    default_code = "business_profile_required"
+    default_detail = {"detail": [
+        "Nur Geschäftskunden ist die Erstellung von Angeboten erlaubt."]}
 
+
+class OfferListAPIView(ListCreateAPIView):
+    queryset = Offer.objects.annotate(min_price=Min('details__price'))
+    serializer_class = OfferSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    pagination_class = OfferPagination
+    filterset_fields = ['user']
+    search_fields = ['title', 'description']
 
     def get_permissions(self):
         """
@@ -53,11 +52,11 @@ class OfferListAPIView(ListCreateAPIView):
 
         :return: A list of permission instances.
         """
-        if self.request.method == 'GET': 
+        if self.request.method == 'GET':
             return [AllowAny()]
         return super().get_permissions()
-    
-    def get_queryset(self):  
+
+    def get_queryset(self):
         """
         Returns a filtered and ordered queryset of offers.
 
@@ -68,20 +67,20 @@ class OfferListAPIView(ListCreateAPIView):
 
         The queryset is ordered by the `ordering` query parameter, which defaults to `updated_at`.
         """
-        queryset = Offer.objects.annotate(min_price=Min('details__price'))  
-        filters = {  
-            'user_id': self.request.query_params.get('creator_id'),  
-            'min_price__gte': self.request.query_params.get('min_price'),  
-            'details__delivery_time_in_days__lte': self.request.query_params.get('max_delivery_time')  
+        queryset = Offer.objects.annotate(min_price=Min('details__price'))
+        filters = {
+            'user_id': self.request.query_params.get('creator_id'),
+            'min_price__gte': self.request.query_params.get('min_price'),
+            'details__delivery_time_in_days__lte': self.request.query_params.get('max_delivery_time')
         }
-        for field, value in filters.items():  
+        for field, value in filters.items():
             if value:
-                queryset = queryset.filter(**{field: value})  
+                queryset = queryset.filter(**{field: value})
 
-        ordering = self.request.query_params.get('ordering', 'updated_at')  
-        return OrderingHelperOffers.apply_ordering(queryset, ordering=ordering)  
+        ordering = self.request.query_params.get('ordering', 'updated_at')
+        return OrderingHelperOffers.apply_ordering(queryset, ordering=ordering)
 
-    def perform_create(self, serializer): 
+    def perform_create(self, serializer):
         """
         Handles the creation of an offer.
 
@@ -93,11 +92,11 @@ class OfferListAPIView(ListCreateAPIView):
         :param serializer: The serializer instance containing the offer data.
         :raises BusinessProfileRequired: If the user does not have a business profile.
         """
-        if not self.is_business_user(self.request.user): 
-            raise BusinessProfileRequired() 
-        serializer.save(user=self.request.user)  
+        if not self.is_business_user(self.request.user):
+            raise BusinessProfileRequired()
+        serializer.save(user=self.request.user)
 
-    def is_business_user(self, user):  
+    def is_business_user(self, user):
         """
         Checks if the given user is a business user.
 
@@ -107,25 +106,33 @@ class OfferListAPIView(ListCreateAPIView):
         :param user: The user to check.
         :return: True if the user is a business user, False otherwise.
         """
-        profile = getattr(user, 'profile', None)  
-        return profile and profile.type == 'business'  
+        profile = getattr(user, 'profile', None)
+        return profile and profile.type == 'business'
 
 
-class OfferDetailAPIView(APIView):  
-    permission_classes = [IsAuthenticated]  
+class OfferDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get(self, request, pk, format=None):  
-        offer = get_object_or_404(OfferDetail, id=pk)  
-        serializer = OfferSingleDetailsSerializer(offer) 
-        return Response(serializer.data, status=status.HTTP_200_OK)  
+    def get(self, request, pk, format=None):
+        """
+        Retrieves an offer detail with the given ID.
+
+        :param request: The incoming request.
+        :param pk: The ID of the offer detail to retrieve.
+        :param format: The format of the response.
+        :return: A JSON response containing the offer detail with a 200 status code.
+        """
+        offer = get_object_or_404(OfferDetail, id=pk)
+        serializer = OfferSingleDetailsSerializer(offer)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView): 
-    queryset = Offer.objects.prefetch_related('details') 
-    serializer_class = AllOfferDetailsSerializer 
-    permission_classes = [IsAuthenticated] 
+class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
+    queryset = Offer.objects.prefetch_related('details')
+    serializer_class = AllOfferDetailsSerializer
+    permission_classes = [IsAuthenticated]
 
-    def get_permissions(self): 
+    def get_permissions(self):
         """
         Returns the appropriate permissions for the current request.
 
@@ -135,11 +142,19 @@ class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
 
         :return: A list of permission instances.
         """
-        if self.request.method == 'PATCH':  
-            return [IsOwnerOrAdmin()]  
-        return super().get_permissions() 
-    
+        if self.request.method == 'PATCH':
+            return [IsOwnerOrAdmin()]
+        return super().get_permissions()
+
     def get(self, request, pk, format=None):
+        """
+        Retrieves an offer with the given ID.
+
+        :param request: The incoming request.
+        :param pk: The ID of the offer to retrieve.
+        :param format: The format of the response.
+        :return: A JSON response containing the offer details with a 200 status code.
+        """
         offer = get_object_or_404(Offer, id=pk)
         serializer = OfferSerializer(offer)
         data = dict(serializer.data)
@@ -147,22 +162,40 @@ class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
 
         return Response(data, status=status.HTTP_200_OK)
 
-        
-
     def update(self, request, pk, format=None, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=kwargs.get('partial', True))
-        serializer.is_valid(raise_exception=True)
-    
-        details_data = request.data.get('details')
-        for detail_data in details_data:
-            detail_id = detail_data.get('id')
-            if detail_id:
-                OfferDetail.objects.filter(id=detail_id, offer=instance).update(**detail_data)
-        serializer.save()
+        """
+        Updates an offer with the given ID.
 
+        This method first retrieves the offer instance with the given ID.
+        It then validates the incoming data using the serializer.
+        If the incoming data contains a 'details' key, it loops through the details data
+        and updates the corresponding and related offer details.
+        Finally, it saves the updated offer instance and returns a JSON response containing
+        the updated offer data.
+
+        :param request: The incoming request.
+        :param pk: The ID of the offer to update.
+        :param format: The format of the response.
+        :param args: Additional positional arguments.
+        :param kwargs: Additional keyword arguments.
+        :return: A JSON response containing the updated offer data with a 200 status code.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=kwargs.get('partial', True))
+        serializer.is_valid(raise_exception=True)
+
+        details_data = request.data.get('details')
+
+        if details_data:
+            for detail_data in details_data:
+                detail_id = detail_data.get('id')
+                if detail_id:
+                    OfferDetail.objects.filter(
+                        id=detail_id, offer=instance).update(**detail_data)
+
+        serializer.save()
         instance.updated_at = now()
-        
 
         updated_data = {
             'id': instance.id,
@@ -173,9 +206,8 @@ class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
         }
 
         return Response(updated_data, status=status.HTTP_200_OK)
-        
 
-    def delete(self, request, pk, *args, **kwargs):  
+    def delete(self, request, pk, *args, **kwargs):
         """
         Deletes the offer with the given ID.
 
@@ -192,12 +224,13 @@ class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
         :return: An empty response with a status indicating successful deletion.
         """
         offer = get_object_or_404(Offer, id=pk)
-        if not self.has_permission_to_delete(request.user, offer):  
-            raise PermissionDenied({"detail": ["Nur der Ersteller oder ein Admin kann dieses Angebot entfernen."]})  
-        offer.delete() 
-        return Response({}, status=status.HTTP_204_NO_CONTENT)  
+        if not self.has_permission_to_delete(request.user, offer):
+            raise PermissionDenied(
+                {"detail": ["Nur der Ersteller oder ein Admin kann dieses Angebot entfernen."]})
+        offer.delete()
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
 
-    def has_permission_to_delete(self, user, offer):  
+    def has_permission_to_delete(self, user, offer):
         """
         Checks if the given user has permission to delete the given offer.
 
@@ -208,4 +241,4 @@ class OfferDetailsAPIView(RetrieveUpdateDestroyAPIView):
         :param offer: The offer to check.
         :return: True if the user has permission to delete the offer, False otherwise.
         """
-        return user == offer.user or user.is_staff and (user.profile.type == 'business' or user.is_staff)  
+        return user == offer.user or user.is_staff and (user.profile.type == 'business' or user.is_staff)

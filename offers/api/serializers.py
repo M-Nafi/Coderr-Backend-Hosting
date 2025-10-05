@@ -15,7 +15,7 @@ class OfferUrlSerializer(serializers.ModelSerializer):
     def get_url(self, obj):
         """
         Returns a URL to the detail view of the offer.
-        
+
         :param obj: The offer to generate the URL for.
         :return: A URL to the detail view of the offer.
         """
@@ -150,14 +150,16 @@ class OfferSerializer(serializers.ModelSerializer):
         """
         validated_details = validated_data.pop('validated_details')
         offer = Offer.objects.create(**validated_data)
-        OfferDetail.objects.bulk_create([OfferDetail(offer=offer, **detail) for detail in validated_details])
+        OfferDetail.objects.bulk_create(
+            [OfferDetail(offer=offer, **detail) for detail in validated_details])
         return offer
 
 
 class OfferDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = OfferDetail
-        fields = ['title', 'revisions', 'delivery_time_in_days', 'price', 'features', 'offer_type', 'id']
+        fields = ['title', 'revisions', 'delivery_time_in_days',
+                  'price', 'features', 'offer_type', 'id']
         extra_kwargs = {
             'id': {'read_only': True},
             'delivery_time_in_days': {'error_messages': {
@@ -186,7 +188,8 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         :raises serializers.ValidationError: If the given delivery time is less than 1 day.
         """
         if value < 1:
-            raise serializers.ValidationError("Eingegebene Lieferzeit muss mindestens 1 Tag betragen.")
+            raise serializers.ValidationError(
+                "Eingegebene Lieferzeit muss mindestens 1 Tag betragen.")
         return value
 
     def validate_price(self, value):
@@ -198,7 +201,8 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         :raises serializers.ValidationError: If the given price is less than or equal to 1.
         """
         if value <= 1:
-            raise serializers.ValidationError("Eingegebener Preis muss höher als 1 sein.")
+            raise serializers.ValidationError(
+                "Eingegebener Preis muss höher als 1 sein.")
         return value
 
     def validate_revisions(self, value):
@@ -210,7 +214,8 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         :raises serializers.ValidationError: If the given number of revisions is less than -1.
         """
         if value < -1:
-            raise serializers.ValidationError("Eingegebene Anzahl der Revisionen muss eine positive Zahl sein.")
+            raise serializers.ValidationError(
+                "Eingegebene Anzahl der Revisionen muss eine positive Zahl sein.")
         return value
 
     def validate_features(self, value):
@@ -222,14 +227,16 @@ class OfferDetailSerializer(serializers.ModelSerializer):
         :raises serializers.ValidationError: If the features field is empty.
         """
         if not value:
-            raise serializers.ValidationError("Mindestens eine Feature muss vorhanden sein.")
+            raise serializers.ValidationError(
+                "Mindestens eine Feature muss vorhanden sein.")
         return value
-    
-    
+
+
 class OfferSingleDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = OfferDetail
-        fields = ['id', 'title', 'revisions', 'delivery_time_in_days', 'price', 'features', 'offer_type']
+        fields = ['id', 'title', 'revisions',
+                  'delivery_time_in_days', 'price', 'features', 'offer_type']
 
 
 class AllOfferDetailsSerializer(serializers.ModelSerializer):
@@ -241,7 +248,7 @@ class AllOfferDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Offer
         fields = [
-            'id', 'user', 'user_details', 'image', 'title', 'description', 
+            'id', 'user', 'user_details', 'image', 'title', 'description',
             'details', 'min_price', 'min_delivery_time', 'created_at', 'updated_at'
         ]
 
@@ -305,8 +312,8 @@ class AllOfferDetailsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"detail": [errors]})
 
         attrs['validated_details'] = [
-            detail_serializer.validated_data 
-            for detail_serializer in (OfferDetailSerializer(data=d) for d in details_data) 
+            detail_serializer.validated_data
+            for detail_serializer in (OfferDetailSerializer(data=d) for d in details_data)
             if detail_serializer.is_valid()
         ]
         return attrs
@@ -333,15 +340,26 @@ class AllOfferDetailsSerializer(serializers.ModelSerializer):
         return instance
 
     def _update_details(self, instance, details_data):
+        """
+        Updates the related offer details of the given offer instance.
 
-        existing_details = {detail.id: detail for detail in instance.details.all()}
+        This method first creates a dictionary of existing offer details with their IDs as keys.
+        It then loops through the given details data and updates the corresponding offer details.
+        If a detail ID does not exist in the existing details, it skips the detail.
+
+        :param instance: The offer instance whose details are being updated.
+        :param details_data: A list of dictionaries containing the data to update the offer details with.
+        """
+        existing_details = {
+            detail.id: detail for detail in instance.details.all()}
 
         for detail_data in details_data:
             detail_id = detail_data.get('id')
 
             if detail_id:
                 if detail_id in existing_details:
-                    self._update_detail_instance(existing_details.pop(detail_id), detail_data)
+                    self._update_detail_instance(
+                        existing_details.pop(detail_id), detail_data)
                 else:
                     continue
 

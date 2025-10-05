@@ -20,9 +20,8 @@ class BaseInfoView(APIView):
         - review_count: The total number of reviews.
         - offer_count: The total number of offers.
         """
-
         review_count = Review.objects.count()
-        rating_aggregation = Review.objects.aggregate(avg_rating =Avg('rating'))
+        rating_aggregation = Review.objects.aggregate(avg_rating=Avg('rating'))
         average_rating = rating_aggregation.get('avg_rating')
         average_rating = round(average_rating, 1) if average_rating is not None else 0
         business_profile_count = Profile.objects.filter(type='business').count()
@@ -31,7 +30,7 @@ class BaseInfoView(APIView):
         data = {
             "average_rating": average_rating,
             "business_profile_count": business_profile_count,
-            "review_count": review_count,            
+            "review_count": review_count,
             "offer_count": offer_count,
         }
         return Response(data)

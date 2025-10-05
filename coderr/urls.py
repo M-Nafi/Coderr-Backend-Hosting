@@ -18,11 +18,9 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import JsonResponse
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/status/', lambda request: JsonResponse({'status': 'Coderr API läuft'})),
     path('api/', include('user_auth.api.urls')),
     path('api/', include('base_info.api.urls')),
     path('api/', include('offers.api.urls')),
