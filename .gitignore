@@ -89,3 +89,12 @@ local_settings.py
 
 .env
 db.sqlite3venv/
+
+# Added by cleanup
+desktop.ini
+venv/
+.venv/
+db.sqlite3
+dump.rdb
+.angular/
+node_modules/
